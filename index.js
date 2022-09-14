@@ -55,18 +55,20 @@ module.exports = {
 				});
 			},
 			delete(file) {
-				str = file.provider_metadata.link;
-				client.vimeoClient.request(
-					{
-						method: "DELETE",
-						path: "/videos/" + str.split("/")[str.split("/").length - 1],
-					},
-					function (error, body, status_code, headers) {
-						if (error) {
-							console.log(error);
+				if (file && file.provider_metadata && file.provider_metadata.link) {
+					str = file.provider_metadata.link;
+					client.vimeoClient.request(
+						{
+							method: "DELETE",
+							path: "/videos/" + str.split("/")[str.split("/").length - 1],
+						},
+						function (error, body, status_code, headers) {
+							if (error) {
+								console.log(error);
+							}
 						}
-					}
-				);
+					);
+				}
 			},
 		};
 	},
