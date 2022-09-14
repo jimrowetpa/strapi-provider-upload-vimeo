@@ -28,8 +28,6 @@
   },
   "homepage": "https://github.com/viveakrt/strapi-provider-upload-vimeo#readme",
   "dependencies": {
-    "vimeo": "^2.1.1",
-    "axios": "^0.27.2",
-    "tus-js-client": "^3.0.1"
+    "vimeo": "^2.1.1"
   }
 }

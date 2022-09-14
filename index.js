@@ -1,4 +1,4 @@
-const Vimeo = require("./utils/upload.js");
+import { Vimeo } from ("vimeo");
 
 module.exports = {
 	init(config) {
@@ -11,55 +11,34 @@ module.exports = {
 		return {
 			upload(file) {
 				return new Promise((resolve, reject) => {
-					client
-						.uploadFromBinary({
-							video: file.buffer,
+					client.upload(file.buffer,
+						{
 							name: file.hash,
 							description: file.alternativeText,
-						})
-						.then((res) => {
-							if (!config.premium) {
-								// client
-								// 	.getFromId(res.data.uri)
-								// 	.then((res) => {
-								// 		for (i = 0; i < res.data.files.length; i++) {
-								// 			if (res.data.files[i].rendition == "360p") {
-								// 				file.url = res.data.files[i].link;
-								// 				break;
-								// 			}
-								// 		}
-
-								// 		if (file.url == undefined) {
-								// 			file.url = res.data.link;
-								// 		}
-
-								// 		file.provider_metadata = {
-								// 			link: res.data.link,
-								// 			files: res.data.files,
-								// 		};
-								// 		resolve();
-								// 	})
-								// 	.catch((err) => {
-								// 		console.log("get", err);
-								// 		reject();
-								// 	});
-							} else {
-								console.log("TEST");
-								console.dir(res.data);
-								file.url = res.data.link;
-								resolve();
-							}
-						})
-						.catch((err) => {
+						},
+						() => {
+							// complete
+							console.log("complete");
+							console.dir(this);
+							// file.url = res.data.link;
+							resolve();
+						},
+						(bytesUploaded, bytesTotal) => {
+							// progress
+							var percentage = (bytesUploaded / bytesTotal * 100).toFixed(2)
+							console.log(bytesUploaded, bytesTotal, percentage + "%")
+						},
+						(err) => {
+							// error
 							console.log(err);
 							reject();
-						});
+					});
 				});
 			},
 			delete(file) {
 				if (file && file.provider_metadata && file.provider_metadata.link) {
 					str = file.provider_metadata.link;
-					client.vimeoClient.request(
+					client.request(
 						{
 							method: "DELETE",
 							path: "/videos/" + str.split("/")[str.split("/").length - 1],
