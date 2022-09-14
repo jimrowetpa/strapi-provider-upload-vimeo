@@ -18,32 +18,34 @@ module.exports = {
 							description: file.alternativeText,
 						})
 						.then((res) => {
-							if (config.premium) {
-								client
-									.getFromId(res.data.uri)
-									.then((res) => {
-										for (i = 0; i < res.data.files.length; i++) {
-											if (res.data.files[i].rendition == "360p") {
-												file.url = res.data.files[i].link;
-												break;
-											}
-										}
+							if (!config.premium) {
+								// client
+								// 	.getFromId(res.data.uri)
+								// 	.then((res) => {
+								// 		for (i = 0; i < res.data.files.length; i++) {
+								// 			if (res.data.files[i].rendition == "360p") {
+								// 				file.url = res.data.files[i].link;
+								// 				break;
+								// 			}
+								// 		}
 
-										if (file.url == undefined) {
-											file.url = res.data.link;
-										}
+								// 		if (file.url == undefined) {
+								// 			file.url = res.data.link;
+								// 		}
 
-										file.provider_metadata = {
-											link: res.data.link,
-											files: res.data.files,
-										};
-										resolve();
-									})
-									.catch((err) => {
-										console.log("get", err);
-										reject();
-									});
+								// 		file.provider_metadata = {
+								// 			link: res.data.link,
+								// 			files: res.data.files,
+								// 		};
+								// 		resolve();
+								// 	})
+								// 	.catch((err) => {
+								// 		console.log("get", err);
+								// 		reject();
+								// 	});
 							} else {
+								console.log("TEST");
+								console.dir(res.data);
 								file.url = res.data.link;
 								resolve();
 							}
