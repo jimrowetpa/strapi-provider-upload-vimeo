@@ -21,13 +21,13 @@
     "api",
     "delete"
   ],
-  "author": "James Rowe <james.rowe@tpagency.com>, Original -> Vivek",
+  "author": "James Rowe <james.rowe@tpagency.com>",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/jimrowetpa/strapi-provider-upload-vimeo/issues"
   },
   "homepage": "https://github.com/jimrowetpa/strapi-provider-upload-vimeo#readme",
   "dependencies": {
-    "vimeo": "^2.1.1"
+    "axios": "^0.27.2"
   }
 }
