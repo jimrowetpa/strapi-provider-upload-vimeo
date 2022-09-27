@@ -83,9 +83,9 @@ module.exports = {
 
 		const getTranscodedVideo = function(id, maxattempts) {
 
-			console.log("getTranscodedVideo:"+id);
-
 			return new Promise((resolve, reject) => {
+
+				let frequency = 1000 * 60; // 1 minute
 
 				if (maxattempts <= 0) {
 					reject();
@@ -106,13 +106,17 @@ module.exports = {
 
 					// check transcode status
 					let status = response.data.transcode.status;
-					console.log("status:"+status+"   ("+maxattempts+")");
-					if (status == "available") {
+					console.log("upload status: "+status);
+					if (status == "complete") {
 						resolve(response.data);
 					} else {
 						setTimeout(() => {
-							return getTranscodedVideo(id, maxattempts - 1);
-						}, 1000);
+							return getTranscodedVideo(id, maxattempts - 1).then((data) => {
+								resolve(data);
+							}).catch(() => {
+								reject();
+							});
+						}, frequency);
 					}
 
 				}).catch(function (error) {
@@ -146,13 +150,6 @@ module.exports = {
 			file.width = data.width;
 			file.height = data.height;
 
-			// preview url
-			// if (data.pictures.sizes.length > 3) {
-			// 	file.previewUrl = data.pictures.sizes[3].link;
-			// } else if (startData.pictures.sizes.length > 0) {
-			// 	file.previewUrl = data.pictures.sizes[data.pictures.sizes.length - 1].link;
-			// }
-
 			file.url = data.link;
 		}
 
@@ -171,10 +168,61 @@ module.exports = {
 							// can't do this - it takes too long, have to reload
 							// where we are using the videos
 							// getTranscodedVideo(file.provider_metadata.id, 300).then(function() {
-								resolve();
 							// }).catch(function (error) {
 							// 	reject();
 							// });
+
+							// start polling for video to be transcoded so we can update values
+							// getTranscodedVideo(file.provider_metadata.id, 30).then(function(data) {
+							// 	console.log("COMPLETE");
+
+							// 	// now get them using API
+							// 	client({
+							// 		method: 'GET',
+							// 		url: `videos/${file.provider_metadata.id}/pictures`
+							// 	}).then(function(response) {
+
+							// 		// set return data directly on file
+							// 		console.log("PICTURES API");
+							// 		if (response?.data?.data && response?.data?.data.length > 0) {
+							// 			console.dir(response?.data?.data[0].sizes);
+
+							// 			// preview url
+							// 			let previewUrl = null;
+							// 			if (response?.data?.data[0].sizes) {
+							// 				if (response?.data?.data[0].sizes.length > 3) {
+							// 					previewUrl = response.data.data[0].sizes[3].link;
+							// 				} else if (response?.data?.data[0].sizes.length > 0) {
+							// 					previewUrl = response.data.data[0].sizes[response.data.data[0].sizes.length - 1].link;
+							// 				}
+							// 			}
+							// 			if (previewUrl) {
+							// 				console.log("previewUrl");
+							// 				console.log(previewUrl);
+
+							// 				// any way to update an upload?
+
+							// 				// but the file doesnt have an id yet so we don't
+							// 				// know what to update anyway!! :-)
+							// 				// console.dir(file);
+
+							// 				// strapi.entityService.findOne('api::media.media', 1, {
+							// 				// 	fields: ['title', 'description'],
+							// 				// 	populate: { category: true },
+							// 				// }).then((entity) => {
+
+							// 				// });
+							// 			}
+							// 		}
+
+
+							// 	})
+
+							// 	// updateFileData(file, data, true);
+							// });
+
+							// immediately return
+							resolve();
 
 						}).catch(function (error) {
 							console.log("ERROR");
@@ -209,7 +257,9 @@ module.exports = {
 							} else if (error.response.data) {
 								console.dir(error.response.data);
 							}
-							reject();
+							//reject();
+							// on failure allow strapi to delete it
+							resolve();
 						});
 
 					});
