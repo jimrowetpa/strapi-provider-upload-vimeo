@@ -10,7 +10,9 @@ module.exports = {
 			}
 		});
 
-		const startTusUpload = function(file) {
+		const startTusUpload = function(file, length) {
+
+			// console.log("startTusUpload", length);
 
 			return new Promise((resolve, reject) => {
 
@@ -28,7 +30,7 @@ module.exports = {
 						'folder_uri': `/folders/${config.folderId}`,
 						'upload': {
 							'approach': 'tus',
-							'size': `${file.buffer.length}`
+							'size': `${length}`
 						}
 					}
 				}).then(function(response) {
@@ -36,7 +38,10 @@ module.exports = {
 					resolve(response.data);
 
 				}).catch(function (error) {
-					console.log("error starting upload: "+error.response.data.error);
+					console.log("error starting upload: "+error?.response?.status+" "+error?.response?.statusText);
+					if (error?.response?.data?.error) {
+						console.log("error: "+error.response.data.error);
+					}
 					if (error.response.data.invalid_parameters) {
 						console.dir(error.response.data.invalid_parameters);
 					} else if (error.response.data) {
@@ -48,7 +53,9 @@ module.exports = {
 			});
 		}
 
-		const sendTusData = function(fileUrl, file) {
+		const sendTusData = function(fileUrl, file, offset) {
+
+			if (offset === undefined) offset = '0';
 
 			return new Promise((resolve, reject) => {
 
@@ -58,26 +65,25 @@ module.exports = {
 					url: fileUrl,
 					headers: {
 						'Tus-Resumable': '1.0.0',
-						'Upload-Offset': '0',
+						'Upload-Offset': offset,
 						'Content-Type': 'application/offset+octet-stream'
 					},
 					data: file.buffer
 				}).then(function(response) {
 
-					// set return data directly on file
-					file
-
-					resolve();
+					resolve(response);
 
 				}).catch(function (error) {
-					console.dir(error);
-					console.log("error sending upload: "+error.response.data.error);
-					if (error.response.data.invalid_parameters) {
-						console.dir(error.response.data.invalid_parameters);
-					} else if (error.response.data) {
+					console.log("error sending upload: "+error?.response?.status+" "+error?.response?.statusText);
+					if (error?.response?.data?.error) {
+						console.log("error: "+error.response.data.error);
+					}
+					if (error.response?.data?.invalid_parameters) {
+						console.log("invalid parameters: " + error.response.data.invalid_parameters);
+					} else if (error.response?.data) {
 						console.dir(error.response.data);
 					}
-					reject();
+					reject(error);
 				});
 			});
 		}
@@ -107,7 +113,6 @@ module.exports = {
 
 					// check transcode status
 					let status = response.data.transcode.status;
-					console.log("upload status: "+status);
 					if (status == "complete") {
 						resolve(response.data);
 					} else {
@@ -159,11 +164,14 @@ module.exports = {
 
 				return new Promise((resolve, reject) => {
 
-					startTusUpload(file).then(function(startData) {
+					startTusUpload(file, file.buffer.length).then(function(startData) {
 
 						updateFileData(file, startData);
 
-						sendTusData(startData.upload.upload_link, file).then(function() {
+						sendTusData(startData.upload.upload_link, file).then(function(response) {
+
+							// set return data directly on file
+							updateFileData(file, response.data);
 
 							// poll for progress and update fields
 							// can't do this - it takes too long, have to reload
@@ -226,10 +234,86 @@ module.exports = {
 							resolve();
 
 						}).catch(function (error) {
-							console.log("ERROR");
-							console.dir(error);
 							reject();
 						});
+					}).catch(function (error) {
+						console.log("ERROR");
+						console.dir(error);
+						reject();
+					});
+				});
+
+			},
+			uploadStream(file) {
+
+				return new Promise((resolve, reject) => {
+
+					const bytesToSend = file.size * 1000;
+
+					startTusUpload(file, bytesToSend).then(function(startData) {
+
+						updateFileData(file, startData);
+						let bytesSent = 0;
+						const sendQueue = [];
+						let cancelSend = false;
+
+						// actual data sent doesn't match size so also track number of chunks
+						let expectedChunks = 0;
+						let sentChunks = 0;
+
+						// check if we have data to send
+						const checkQueue = async function() {
+
+							// do we have data to send?
+							if (sendQueue.length > 0) {
+
+								let chunk = sendQueue.shift();
+
+								const currentOffset = bytesSent.toString();
+
+								const fileWithBuffer = Object.assign(file, {buffer: chunk});
+								try {
+									const response = await sendTusData(startData.upload.upload_link, fileWithBuffer, currentOffset);
+
+									// bytesSent = bytesSent + chunk.length;
+									// console.log("Uploaded:", response?.headers["upload-offset"]);
+									bytesSent = parseInt(response?.headers["upload-offset"]);
+									sentChunks = sentChunks + 1;
+
+								} catch (error) {
+									console.dir(error);
+									cancelSend = true;
+									reject();
+								}
+							}
+
+							// call again if we have more to send
+							if (!cancelSend && (
+								bytesSent < bytesToSend && sentChunks < expectedChunks)) {
+								setTimeout(() => {
+									checkQueue();
+								}, 1);
+							}
+						};
+
+						// read chunks from the stream and send each one
+						file.stream.on('data', (chunk) => {
+							// console.log(`Received ${chunk.length} bytes of data.`);
+
+							// add chunk to the queue
+							sendQueue.push(chunk);
+							if (expectedChunks == 0) {
+								expectedChunks = 1;
+								checkQueue();
+							} else {
+								expectedChunks = expectedChunks + 1;
+							}
+						});
+						file.stream.on('end', () => {
+							// console.log('There will be no more data.');
+							resolve();
+						});
+
 					}).catch(function (error) {
 						console.log("ERROR");
 						console.dir(error);
