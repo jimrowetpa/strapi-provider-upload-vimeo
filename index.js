@@ -70,6 +70,7 @@ module.exports = {
 					resolve();
 
 				}).catch(function (error) {
+					console.dir(error);
 					console.log("error sending upload: "+error.response.data.error);
 					if (error.response.data.invalid_parameters) {
 						console.dir(error.response.data.invalid_parameters);
