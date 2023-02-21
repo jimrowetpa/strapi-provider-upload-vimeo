@@ -1,5 +1,21 @@
 const axios = require("axios");
 
+/**
+ * Gets the file size.
+ * @param {ReadableStream} stream
+ * @returns {Promise<number>}
+ */
+async function getFileSize(stream) {
+  let size = 0;
+  return new Promise((resolve, reject) => {
+    stream.on("data", (chunk) => {
+      size += chunk.byteLength;
+    });
+    stream.on("error", (err) => reject(err));
+    stream.on("end", () => resolve(size));
+  });
+}
+
 module.exports = {
   init(config) {
     const client = axios.create({
@@ -9,8 +25,13 @@ module.exports = {
       },
     });
 
-    const startTusUpload = function (file, length) {
-      // console.log("startTusUpload", length);
+    const startTusUpload = async (file, lengthRounded) => {
+      // We need to calculate the exact file size ourselves because of this:
+      // https://github.com/strapi/strapi/issues/15875
+      // If we use an incorrect file size (even just one byte off),
+      // Vimeo won't finish the upload process because it assumes we're going
+      // to resume it later.
+      const size = await getFileSize(file.getStream());
 
       return new Promise((resolve, reject) => {
         // create a video
@@ -27,7 +48,7 @@ module.exports = {
             folder_uri: `/folders/${config.folderId}`,
             upload: {
               approach: "tus",
-              size: `${length}`,
+              size: `${size}`,
             },
           },
         })
